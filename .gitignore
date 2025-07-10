@@ -1,0 +1,15 @@
+# Byte-compiled / dynamic Python files
+__pycache__/
+*.py[cod]
+
+# ROS2 build artefacts
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# IDE / editor settings
+.vscode/
+.idea/
+
+# Model weight files (downloaded by installer)
+models/*.pt 
