@@ -4,11 +4,22 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     return LaunchDescription([
-        # Ultrasonic safety filter
+        # Safety layer ------------------------------------------------------
         Node(
             package='waveshare_safety',
             executable='ultrasonic_safety_node.py',
             name='ultrasonic_safety',
+            output='screen',
+            remappings=[
+                ('/cmd_vel', '/cmd_vel_rules')
+            ]
+        ),
+
+        # Goal follower – drive to user target without lane lines
+        Node(
+            package='waveshare_navigation',
+            executable='goal_follower_node',
+            name='goal_follower',
             output='screen'
         ),
 
@@ -23,6 +34,14 @@ def generate_launch_description():
             ]
         ),
 
+        # Wheel odometry publisher
+        Node(
+            package='waveshare_base',
+            executable='odom_publisher_node',
+            name='wheel_odom',
+            output='screen'
+        ),
+
         # USB camera driver
         Node(
             package='v4l2_camera',
@@ -34,35 +53,30 @@ def generate_launch_description():
                          'frame_rate': 30}]
         ),
 
-        # Wheel odometry publisher
-        Node(
-            package='waveshare_base',
-            executable='odom_publisher_node',
-            name='wheel_odom',
-            output='screen'
-        ),
-
-        # YOLO sign detector
+        # Perception -------------------------------------------------------
         Node(
             package='waveshare_perception',
             executable='yolo_sign_node',
             name='yolo_sign',
             output='screen'
         ),
-
-        # YOLO traffic-light detector
         Node(
             package='waveshare_perception',
             executable='yolo_traffic_light_node',
             name='yolo_traffic',
             output='screen'
         ),
-
-        # Lane segmentation
         Node(
             package='waveshare_perception',
             executable='lane_segmentation_node',
             name='lane_segmentation',
+            output='screen'
+        ),
+        # Road-rule filter (stop signs, traffic lights)
+        Node(
+            package='waveshare_navigation',
+            executable='rules_of_road_node',
+            name='rules_of_road',
             output='screen'
         ),
     ]) 

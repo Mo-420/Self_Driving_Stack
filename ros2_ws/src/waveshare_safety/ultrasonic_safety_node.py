@@ -56,6 +56,9 @@ class CollisionPrevention(Node):
         # Internal state
         self._lock = Lock()
         self._raw_cmd = Twist()
+        # Simple finite-state machine for avoidance
+        self._mode = 'NORMAL'           # NORMAL or AVOIDING
+        self._avoid_direction = None    # 'left' or 'right'
 
         # Timer to evaluate safety at 10 Hz
         self.create_timer(0.1, self._safety_loop)
@@ -67,31 +70,65 @@ class CollisionPrevention(Node):
 
     # --------------------------------------------------------------
     def _safety_loop(self):
-        # Read sensors
-        distances = {name: sensor.get_distance()/100.0  # cm → m
-                      for name, sensor in self.sensors.items()}
+        # ----------------------------------------------------------
+        # 1. Read sensor distances (m)
+        distances = {name: sensor.get_distance()/100.0 for name, sensor in self.sensors.items()}
+        front_d = distances.get('front', 1.0)
+        left_d  = distances.get('left', 1.0)
+        right_d = distances.get('right', 1.0)
+        rear_d  = distances.get('rear', 1.0)
+        min_d   = min(distances.values())
 
-        # Compute minimum distance
-        min_d = min(distances.values())
-
-        safe_cmd = Twist()
-        override = ''
+        # 2. Start with the user request
         with self._lock:
-            safe_cmd = self._raw_cmd
+            safe_cmd = Twist()
+            safe_cmd.linear.x  = self._raw_cmd.linear.x
+            safe_cmd.angular.z = self._raw_cmd.angular.z
 
+        override = ''
+
+        # Emergency stop always wins
         if min_d <= self.em_stop_d:
-            safe_cmd.linear.x  = 0.0
+            safe_cmd.linear.x = 0.0
             safe_cmd.angular.z = 0.0
+            self._mode = 'NORMAL'
             override = 'EMERGENCY_STOP'
-        elif min_d <= self.slow_d:
-            safe_cmd.linear.x = min(safe_cmd.linear.x, 0.1)  # slow forward
-            override = 'SLOW_MODE'
 
-        # Publish safe command + status
+        # Obstacle within avoidance zone directly ahead
+        elif front_d <= self.slow_d:
+            # If not already avoiding, choose side with more space
+            if self._mode == 'NORMAL':
+                self._mode = 'AVOIDING'
+                self._avoid_direction = 'left' if left_d > right_d else 'right'
+
+            # Produce avoidance twist
+            safe_cmd.linear.x = 0.05  # creep forward
+            turn_speed = 0.6
+            safe_cmd.angular.z = turn_speed if self._avoid_direction == 'left' else -turn_speed
+            if self._avoid_direction is not None:
+                override = f'AVOID_{self._avoid_direction.upper()}'
+            else:
+                override = 'AVOID'
+
+            # If path ahead is now clear, exit avoidance
+            if front_d > self.slow_d and min(left_d, right_d) > self.slow_d:
+                self._mode = 'NORMAL'
+
+        else:
+            # No obstacle ahead – normal operation
+            self._mode = 'NORMAL'
+
+            # Slow mode if any side object is close
+            if min_d <= self.slow_d:
+                safe_cmd.linear.x = min(safe_cmd.linear.x, 0.1)
+                override = 'SLOW_MODE'
+
+        # 3. Publish results
         self.cmd_pub.publish(safe_cmd)
 
         status_msg = {
             'override': override,
+            'mode': self._mode,
             'min_distance': round(min_d, 2),
             'distances': {k: round(v, 2) for k, v in distances.items()}
         }
