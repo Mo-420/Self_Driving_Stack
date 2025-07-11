@@ -142,6 +142,13 @@ def generate_launch_description():
         }]
     )
     
+    # EKF localization
+    ekf_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_base'), 'launch', 'ekf.launch.py'])
+        ])
+    )
+    
     # Static transform publishers (robot frames)
     base_to_camera = Node(
         package='tf2_ros',
@@ -191,12 +198,19 @@ def generate_launch_description():
         
         # Safety
         ultrasonic_safety_node,
+        Node(
+            package='waveshare_safety',
+            executable='web_e_stop_node',
+            name='web_e_stop_node',
+            output='screen',
+            parameters=[{'server_url': web_server_url, 'namespace': '/robotaxi'}]
+        ),
         
         # Navigation
         goal_follower_node,
         rules_of_road_node,
         route_receiver_node,
-        
+        ekf_launch,
         # TF
         base_to_camera,
         base_to_ultrasonic,

@@ -6,7 +6,7 @@ setup(
     name=package_name,
     version='0.0.0',
     packages=[package_name],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'python-socketio'],
     zip_safe=True,
     maintainer='robotaxi',
     maintainer_email='robotaxi@example.com',
