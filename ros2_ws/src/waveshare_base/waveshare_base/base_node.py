@@ -83,11 +83,22 @@ class WaveshareBaseNode(Node):
         MAX_SPEED = 0.3
         MAX_TURN  = 1.0  # rad/s
 
-        speed_norm = max(min(linear_x / MAX_SPEED, 1.0), -1.0)
-        turn_norm  = max(min(angular_z / MAX_TURN, 1.0), -1.0)
-
-        cmd = {"T": 13, "X": speed_norm, "Z": turn_norm}
-        self.base.base_json_ctrl(cmd)
+        # Alternative: Use direct wheel speed control for differential drive
+        # This gives more precise control
+        if abs(angular_z) < 0.01:  # Nearly straight motion
+            # Use T:1 command for direct wheel speeds in m/s
+            left_speed = linear_x
+            right_speed = linear_x
+            cmd = {"T": 1, "L": left_speed, "R": right_speed}
+            self.base.base_json_ctrl(cmd)
+            self.get_logger().debug(f"Direct wheel control: L={left_speed}, R={right_speed}")
+        else:
+            # Use T:13 for combined linear/angular motion
+            speed_norm = max(min(linear_x / MAX_SPEED, 1.0), -1.0)
+            turn_norm  = max(min(angular_z / MAX_TURN, 1.0), -1.0)
+            cmd = {"T": 13, "X": speed_norm, "Z": turn_norm}
+            self.base.base_json_ctrl(cmd)
+            self.get_logger().debug(f"ROS control: X={speed_norm}, Z={turn_norm}")
 
     # ------------------------------------------------------------------
     def _publish_fake_odom(self):
