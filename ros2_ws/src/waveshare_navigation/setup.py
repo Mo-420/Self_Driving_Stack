@@ -18,6 +18,8 @@ setup(
             'wander_node = waveshare_navigation.wander_node:main',
             'goal_follower_node = waveshare_navigation.goal_follower_node:main',
             'rules_of_road_node = waveshare_navigation.rules_of_road_node:main',
+            'route_receiver_node = waveshare_navigation.route_receiver_node:main',
+            'telemetry_sender_node = waveshare_navigation.telemetry_sender_node:main',
         ],
     },
 ) 

@@ -1,0 +1,54 @@
+name: ROS 2 CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup ROS 2 Humble
+      uses: ros-tooling/setup-ros@v0.7
+      with:
+        required-ros-distributions: humble
+    
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip python3-colcon-common-extensions
+        pip3 install flake8 pytest
+        
+    - name: Install Python dependencies
+      run: |
+        pip3 install ultralytics==8.1.0 python-socketio flask
+    
+    - name: Build workspace
+      run: |
+        source /opt/ros/humble/setup.bash
+        cd ros2_ws
+        colcon build --symlink-install
+        
+    - name: Run linter
+      run: |
+        cd ros2_ws/src
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+    - name: Run tests
+      run: |
+        source /opt/ros/humble/setup.bash
+        cd ros2_ws
+        colcon test
+        colcon test-result --verbose
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: ros2_ws/build/*/test_results/*/*.xml 

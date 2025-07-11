@@ -1,0 +1,17 @@
+[Unit]
+Description=WaveShare Robotaxi ROS 2 Stack
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/WaveShare
+Environment="ROS_DOMAIN_ID=0"
+Environment="ROS_LOCALHOST_ONLY=0"
+ExecStartPre=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/WaveShare/ros2_ws/install/setup.bash'
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/WaveShare/ros2_ws/install/setup.bash && ros2 launch waveshare_base robotaxi_bringup.launch.py'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 
