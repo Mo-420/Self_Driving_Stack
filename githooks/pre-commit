@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Pre-commit hook for WaveShare Robotaxi repository
+# Runs black, flake8 and mypy on all staged Python files.
+
+# Collect staged python files
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.py$')
+
+if [ -z "$STAGED" ]; then
+  exit 0  # Nothing to check
+fi
+
+PASS=true
+
+printf "\n▶ Formatting check (black)\n"
+black --check $STAGED || PASS=false
+
+printf "\n▶ Linting (flake8)\n"
+flake8 $STAGED || PASS=false
+
+printf "\n▶ Type checking (mypy)\n"
+mypy $STAGED || PASS=false
+
+if ! $PASS; then
+  echo "\n✖ Commit aborted – fix issues above and commit again."
+  exit 1
+fi
+
+echo "\n✔ All style checks passed. Proceeding with commit."
+exit 0
