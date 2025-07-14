@@ -27,7 +27,12 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
+from std_msgs.msg import Bool
+from nav_msgs.msg import OccupancyGrid
+import math
 from vision_msgs.msg import Detection2DArray
+from tf2_ros import Buffer, TransformListener
+from geometry_msgs.msg import Twist, TransformStamped
 
 STOP_SIGN_CLASS_ID = 8          # COCO stop-sign
 STOP_HOLD_SEC = 2.0
@@ -42,6 +47,21 @@ class RuleNode(Node):
         self.create_subscription(Detection2DArray, '/sign_detections', self._cb_signs, 10)
         self.create_subscription(Detection2DArray, '/detected_objects', self._cb_objects, 10)
         self.create_subscription(String, '/traffic_light', self._cb_light, 10)
+        # Cross-walk detector flag
+        self._crosswalk_ok = False
+        self.create_subscription(Bool, '/crosswalk_detected',
+                                 lambda msg: setattr(self, '_crosswalk_ok', msg.data), 10)
+
+        # Global costmap for simple road/sidewalk heuristic
+        self._costmap = None
+        self._cost_res = 0.05
+        self._cost_origin_x = 0.0
+        self._cost_origin_y = 0.0
+        self.create_subscription(OccupancyGrid, '/global_costmap/costmap', self._cb_costmap, 1)
+
+        # TF buffer to look up robot pose in map frame
+        self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=5))
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Front-zone hold flags
         self._pedestrian_ahead: bool = False
@@ -117,6 +137,15 @@ class RuleNode(Node):
                 self._car_oncoming = True
 
     # --------------------------------------------------
+    def _cb_costmap(self, msg: OccupancyGrid):
+        self._costmap = msg.data
+        self._cost_res = msg.info.resolution
+        self._cost_origin_x = msg.info.origin.position.x
+        self._cost_origin_y = msg.info.origin.position.y
+        self._cost_width = msg.info.width
+        self._cost_height = msg.info.height
+
+    # --------------------------------------------------
     def _tick(self):
         out = Twist()
         now = self.get_clock().now().seconds_nanoseconds()[0]
@@ -152,8 +181,43 @@ class RuleNode(Node):
             self.cmd_pub.publish(out)
             return
 
+        # Rule 5: approaching road crossing but no zebra detected → freeze
+        if not self._crosswalk_ok and self._road_ahead():
+            self.cmd_pub.publish(Twist())
+            return
+
         # Green light / clear path → forward original cmd
         self.cmd_pub.publish(self._last_cmd)
+
+    # --------------------------------------------------
+    def _road_ahead(self) -> bool:
+        if self._costmap is None:
+            return False
+        dx = 0.6  # metres ahead to sample
+        try:
+            now = rclpy.time.Time()
+            transform: TransformStamped = self.tf_buffer.lookup_transform(
+                'map', 'base_link', now, timeout=rclpy.duration.Duration(seconds=0.1))
+        except Exception:
+            return False  # TF not yet available
+
+        # compute robot yaw from quaternion
+        q = transform.transform.rotation
+        siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+
+        x_map = transform.transform.translation.x + dx * math.cos(yaw)
+        y_map = transform.transform.translation.y + dx * math.sin(yaw)
+
+        col = int((x_map - self._cost_origin_x) / self._cost_res)
+        row = int((y_map - self._cost_origin_y) / self._cost_res)
+        if 0 <= row < self._cost_height and 0 <= col < self._cost_width:
+            idx = row * self._cost_width + col
+            cost = self._costmap[idx]
+            return cost >= 250
+        except Exception:
+            return False
 
 
 def main():

@@ -33,7 +33,14 @@ def index():
 @socketio.on('connect')
 def handle_connect():
     print(f"Client connected: {request.sid}")
-    emit('car_status', car_status)
+    emit('telemetry', {
+        'latitude': car_status['latitude'],
+        'longitude': car_status['longitude'],
+        'battery_level': round(car_status['battery_level'], 1),
+        'speed': car_status['speed'],
+        'status': car_status['status'],
+        'connected': car_status['connected']
+    })
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -125,12 +132,24 @@ def handle_emergency_stop():
     emit('emergency_stop_ack', {'status': 'stopped'}, broadcast=True)
     print("Emergency stop executed")
 
+@socketio.on('update_car_position')
+def handle_update_car_position(data):
+    """Handle manual update of car's position from web app"""
+    if 'latitude' in data and 'longitude' in data:
+        car_status['latitude'] = data['latitude']
+        car_status['longitude'] = data['longitude']
+        print(f"Car position manually updated to: {data['latitude']}, {data['longitude']}")
+        # The regular telemetry loop will broadcast the new position
+    else:
+        print("Invalid car position update received.")
+
 def update_telemetry():
     """Simulate telemetry updates from robotaxi system"""
     while True:
         if car_status['status'] == 'navigating':
-            # Simulate movement along route
-            # In real implementation, this would come from the robotaxi system
+            # Simulate movement: slightly update position
+            car_status['latitude'] += 0.0001
+            car_status['longitude'] += 0.0001
             car_status['speed'] = 2.0  # m/s
         else:
             car_status['speed'] = 0.0
@@ -145,7 +164,8 @@ def update_telemetry():
             'longitude': car_status['longitude'],
             'battery_level': round(car_status['battery_level'], 1),
             'speed': car_status['speed'],
-            'status': car_status['status']
+            'status': car_status['status'],
+            'connected': car_status['connected']
         })
         
         time.sleep(1)  # Update every second
@@ -163,4 +183,4 @@ if __name__ == '__main__':
     start_telemetry_thread()
     
     # Start the server
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True) 
+    socketio.run(app, host='0.0.0.0', port=5000) 

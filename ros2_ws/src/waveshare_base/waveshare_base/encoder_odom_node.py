@@ -21,6 +21,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
+from std_msgs.msg import Float32
 
 try:
     from ugv_rpi.base_ctrl import BaseController
@@ -68,6 +69,7 @@ class EncoderOdomNode(Node):
             reliability=QoSReliabilityPolicy.RELIABLE
         )
         self.odom_pub = self.create_publisher(Odometry, 'odom', qos)
+        self.batt_pub = self.create_publisher(Float32, 'battery_voltage', 10)
         
         # TF broadcaster
         if self.publish_tf:

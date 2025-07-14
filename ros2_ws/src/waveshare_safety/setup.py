@@ -16,6 +16,7 @@ setup(
     entry_points={
         'console_scripts': [
             'ultrasonic_safety_node = waveshare_safety.ultrasonic_safety_node:main',
+            'power_guard_node = waveshare_safety.power_guard_node:main',
             'web_e_stop_node = waveshare_safety.web_e_stop_node:main'
         ],
     },

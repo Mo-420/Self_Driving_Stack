@@ -25,6 +25,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+from std_msgs.msg import Bool
 
 try:
     # Re-use existing serial controller
@@ -60,6 +61,9 @@ class WaveshareBaseNode(Node):
             qos)
 
         self.odom_pub = self.create_publisher(Odometry, '/odom', qos)
+
+        self.e_stop = False
+        self.create_subscription(Bool, 'e_stop', self._e_stop_cb, 10)
 
         # Odometry placeholders
         self._x = 0.0
@@ -99,6 +103,11 @@ class WaveshareBaseNode(Node):
             cmd = {"T": 13, "X": speed_norm, "Z": turn_norm}
             self.base.base_json_ctrl(cmd)
             self.get_logger().debug(f"ROS control: X={speed_norm}, Z={turn_norm}")
+
+    def _e_stop_cb(self, msg: Bool):
+        self.e_stop = msg.data
+        if self.e_stop:
+            self.base.gimbal_emergency_stop()
 
     # ------------------------------------------------------------------
     def _publish_fake_odom(self):

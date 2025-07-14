@@ -17,7 +17,10 @@ setup(
         'console_scripts': [
             'yolo_sign_node = waveshare_perception.yolo_sign_node:main',
             'yolo_traffic_light_node = waveshare_perception.yolo_traffic_light_node:main',
-            'lane_segmentation_node = waveshare_perception.lane_segmentation_node:main'
+            'lane_segmentation_node = waveshare_perception.lane_segmentation_node:main',
+            'cam_socketio_bridge = waveshare_perception.cam_socketio_bridge:main',
+            'yolo_crosswalk_node = waveshare_perception.yolo_crosswalk_node:main',
+            'semantic_seg_node = waveshare_perception.semantic_seg_node:main',
         ],
     },
 ) 

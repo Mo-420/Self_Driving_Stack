@@ -183,6 +183,47 @@ def generate_launch_description():
     #     }.items()
     # )
     
+    # LiDAR driver
+    rplidar_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_base'), 'launch', 'rplidar.launch.py'])
+        ])
+    )
+
+    description_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_description'), 'launch', 'description.launch.py'])
+        ])
+    )
+    imu_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_sensors'), 'launch', 'imu.launch.py'])
+        ])
+    )
+    
+    gps_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_sensors'), 'launch', 'gps.launch.py'])
+        ])
+    )
+    
+    slam_auto_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_slam'), 'launch', 'auto_slam.launch.py'])
+        ])
+    )
+    
+    # Nav2 outputs /cmd_vel, remap to /cmd_vel_nav2 for arbiter
+    nav2_remap = [('/cmd_vel', '/cmd_vel_nav2')]
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('waveshare_navigation'), 'launch', 'nav2_bringup.launch.py'])
+        ]),
+        launch_arguments={},
+        target_namespace='',
+        # remappings=nav2_remap  # can't set remap directly on include; we'll add node later if needed
+    )
+    
     return LaunchDescription([
         # Arguments
         declare_use_sim_time,
@@ -194,10 +235,31 @@ def generate_launch_description():
         
         # Perception
         yolo_sign_node,
+        Node(
+            package='waveshare_perception',
+            executable='yolo_crosswalk_node',
+            name='yolo_crosswalk_node',
+            output='screen',
+            parameters=[{'use_sim_time': use_sim_time}]
+        ),
+        Node(
+            package='waveshare_perception',
+            executable='semantic_seg_node',
+            name='semantic_seg_node',
+            output='screen',
+            parameters=[{'use_sim_time': use_sim_time}]
+        ),
         lane_segmentation_node,
         
         # Safety
         ultrasonic_safety_node,
+        Node(
+            package='waveshare_safety',
+            executable='power_guard_node',
+            name='power_guard_node',
+            output='screen',
+            parameters=[{'use_sim_time': use_sim_time, 'low_voltage_threshold': 6.4}]
+        ),
         Node(
             package='waveshare_safety',
             executable='web_e_stop_node',
@@ -209,6 +271,13 @@ def generate_launch_description():
         # Navigation
         goal_follower_node,
         rules_of_road_node,
+        Node(
+            package='waveshare_navigation',
+            executable='path_sequencer_node',
+            name='path_sequencer_node',
+            output='screen',
+            parameters=[{'use_sim_time': use_sim_time}]
+        ),
         route_receiver_node,
         ekf_launch,
         # TF
@@ -217,4 +286,32 @@ def generate_launch_description():
         
         # Optional Nav2
         # nav2_launch
+        rplidar_launch,
+        description_launch,
+        imu_launch,
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([FindPackageShare('waveshare_sensors'), 'launch', 'camera.launch.py'])
+            ])
+        ),
+        gps_launch,
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([FindPackageShare('waveshare_slam'), 'launch', 'sidewalk_mask.launch.py'])
+            ])
+        ),
+        slam_auto_launch,
+        nav2_launch,
+        Node(
+            package='waveshare_navigation',
+            executable='arbiter_node',
+            name='arbiter_node',
+            output='screen',
+        ),
+        Node(
+            package='waveshare_navigation',
+            executable='teleop_socketio_node',
+            name='teleop_socketio_node',
+            output='screen',
+        ),
     ]) 

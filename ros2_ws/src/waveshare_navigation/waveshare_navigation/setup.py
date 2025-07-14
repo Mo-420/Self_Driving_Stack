@@ -18,6 +18,9 @@ setup(
             'wander_node = waveshare_navigation.wander_node:main',
             'goal_follower_node = waveshare_navigation.goal_follower_node:main',
             'rules_of_road_node = waveshare_navigation.rules_of_road_node:main',
+            'path_sequencer_node = waveshare_navigation.path_sequencer_node:main',
+            'arbiter_node = waveshare_navigation.arbiter_node:main',
+            'teleop_socketio_node = waveshare_navigation.teleop_socketio_node:main',
         ],
     },
 ) 

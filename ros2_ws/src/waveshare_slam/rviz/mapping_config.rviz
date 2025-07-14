@@ -1,0 +1,14 @@
+Visualization Manager:
+  Class: "rviz/VisualizationManager"
+  Displays:
+    - Name: Grid
+      Type: rviz/Grid
+    - Name: Map
+      Type: rviz/Map
+      Topic: /map
+    - Name: Laser
+      Type: rviz/LaserScan
+      Topic: /scan
+    - Name: Pose
+      Type: rviz/Pose
+      Topic: /tf 
